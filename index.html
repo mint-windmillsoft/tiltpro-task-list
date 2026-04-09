@@ -375,27 +375,26 @@ function setActiveTab(idx) {
 function loadCurrentTab() {
   const { sheetKey, tab } = allTabs[currentTabIndex];
   const sheet = SHEETS[sheetKey];
-  const cbName = 'gvizCallback_' + Date.now();
-  const url = `https://docs.google.com/spreadsheets/d/${sheet.id}/gviz/tq?gid=${tab.gid}&callback=${cbName}`;
+  const url = `https://docs.google.com/spreadsheets/d/${sheet.id}/gviz/tq?gid=${tab.gid}`;
 
   showLoading();
 
-  // 이전 스크립트 태그 제거
   const old = document.getElementById('gviz_script');
   if (old) old.remove();
 
-  // 타임아웃
   const timer = setTimeout(() => {
     showError('데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해 주세요.');
-    delete window[cbName];
   }, 8000);
 
-  // JSONP 콜백
-  window[cbName] = (json) => {
-    clearTimeout(timer);
-    delete window[cbName];
-    renderTable(json, sheet.type, tab.name);
-    document.getElementById('lastUpdated').textContent = '최종 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  // Google gviz는 항상 이 함수명으로 콜백 호출
+  if (!window.google) window.google = {};
+  if (!window.google.visualization) window.google.visualization = {};
+  window.google.visualization.Query = {
+    setResponse: (json) => {
+      clearTimeout(timer);
+      renderTable(json, sheet.type, tab.name);
+      document.getElementById('lastUpdated').textContent = '최종 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+    }
   };
 
   const script = document.createElement('script');
@@ -403,7 +402,6 @@ function loadCurrentTab() {
   script.src = url;
   script.onerror = () => {
     clearTimeout(timer);
-    delete window[cbName];
     showError('데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해 주세요.');
   };
   document.head.appendChild(script);
