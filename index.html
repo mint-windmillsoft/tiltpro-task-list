@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>틸트프로 통합테스트 협업 포털</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --purple: #7c3aed;
+      --gray: #6b7280;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── 헤더 ── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+    header .subtitle { font-size: 12px; opacity: .8; margin-top: 2px; }
+    .header-right { font-size: 12px; opacity: .75; text-align: right; }
+
+    /* ── 탭 네비 ── */
+    .tab-nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab-nav button {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text-muted);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .tab-nav button:hover { color: var(--primary); }
+    .tab-nav button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* ── 메인 컨텐츠 ── */
+    main { padding: 24px 32px; }
+
+    /* ── 로딩 / 에러 ── */
+    .state-box {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .state-box .icon { font-size: 40px; margin-bottom: 12px; }
+    .state-box p { font-size: 14px; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 필터 바 ── */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar input, .filter-bar select {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: var(--card);
+      color: var(--text);
+    }
+    .filter-bar input { width: 220px; }
+    .filter-bar .count-badge {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── 테이블 래퍼 ── */
+    .table-wrap {
+      background: var(--card);
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead tr { background: #f8fafc; }
+    th {
+      padding: 11px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* ── 배지 ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-보류  { background: #fef3c7; color: #92400e; }
+    .badge-진행중 { background: #dbeafe; color: #1e40af; }
+    .badge-완료  { background: #dcfce7; color: #14532d; }
+    .badge-불가  { background: #fee2e2; color: #991b1b; }
+    .badge-확인중 { background: #ede9fe; color: #4c1d95; }
+    .badge-상 { background: #fee2e2; color: #991b1b; }
+    .badge-중 { background: #fef3c7; color: #92400e; }
+    .badge-하 { background: #f0fdf4; color: #14532d; }
+
+    /* ── 고객사 확인사항 입력 ── */
+    .customer-cell {
+      position: relative;
+    }
+    .customer-input {
+      width: 100%;
+      min-width: 180px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 34px;
+      transition: border-color .2s;
+      background: #fffbeb;
+    }
+    .customer-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .customer-input.saved { border-color: var(--success); background: #f0fdf4; }
+    .save-btn {
+      margin-top: 4px;
+      padding: 3px 10px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background .2s;
+      font-family: inherit;
+    }
+    .save-btn:hover { background: var(--primary-dark); }
+    .save-btn:disabled { background: var(--success); cursor: default; }
+    .save-msg {
+      font-size: 11px;
+      color: var(--success);
+      margin-top: 2px;
+      display: none;
+    }
+
+    /* ── 시나리오 테이블 전용 ── */
+    .step-desc { max-width: 280px; line-height: 1.6; white-space: pre-line; }
+    .checkpoint { max-width: 300px; line-height: 1.6; white-space: pre-line; }
+    .no-cell { width: 40px; text-align: center; color: var(--text-muted); font-weight: 600; }
+
+    /* ── 섹션 헤더 (시나리오 시트의 탭 그룹) ── */
+    .section-header {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+    }
+    .section-header td {
+      font-weight: 700;
+      color: var(--primary);
+      padding: 10px 14px;
+    }
+
+    /* ── 반응형 ── */
+    @media (max-width: 768px) {
+      header { padding: 12px 16px; }
+      .tab-nav { padding: 0 16px; }
+      main { padding: 16px; }
+      .filter-bar input { width: 150px; }
+    }
+
+    /* ── 저장 토스트 ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all .3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>틸트프로 통합테스트 협업 포털</h1>
+    <div class="subtitle">고객사 확인사항은 각 행의 입력란에 직접 작성해 주세요</div>
+  </div>
+  <div class="header-right" id="lastUpdated">불러오는 중...</div>
+</header>
+
+<nav class="tab-nav" id="tabNav"></nav>
+
+<main id="mainContent">
+  <div class="state-box">
+    <div class="spinner"></div>
+    <p>데이터를 불러오는 중입니다...</p>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ────────────────────────────────────────────
+// 설정
+// ────────────────────────────────────────────
+const SHEETS = {
+  worklist: {
+    id: '1m5yKlMm9JrT9CfIrMZN0rF5-Uhegl3ZDsBb9G2nFh4M',
+    label: '수정/요청 작업 리스트',
+    tabs: [{ name: '작업 리스트', gid: '0' }],
+    type: 'worklist'
+  },
+  scenario: {
+    id: '1cDKVgrRFiM-sdbnHK3nFbYV0QFYxNv2V4vx-7Fv1fFc',
+    label: '통합 테스트 시나리오',
+    tabs: [], // 탭 목록은 동적으로 추가
+    type: 'scenario'
+  }
+};
+
+// 시나리오 시트 탭 목록 (확인 후 업데이트 필요)
+const SCENARIO_TABS = [
+  { name: '공지사항',   gid: '723159752' },
+  { name: '계정',      gid: '693435503' },
+  { name: '연락처',    gid: '1801734112' },
+  { name: '대리점 관리', gid: '953124246' },
+  { name: '재고',      gid: '846280914' },
+  { name: '주문',      gid: '1310788014' },
+  { name: '구조변경서류', gid: '1242535745' },
+  { name: '보상판매',  gid: '1201921920' },
+  { name: 'AS',       gid: '1647884968' },
+  { name: '대체품',   gid: '654632359' },
+];
+
+// Apps Script 웹앱 URL (배포 후 여기에 입력)
+const APPS_SCRIPT_URL = '';
+
+// ────────────────────────────────────────────
+// 상태
+// ────────────────────────────────────────────
+let currentSheetKey = 'worklist';
+let currentTabIndex = 0;
+let allTabs = [];
+
+// ────────────────────────────────────────────
+// 초기화
+// ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildTabs();
+  loadCurrentTab();
+});
+
+function buildTabs() {
+  allTabs = [];
+
+  // 작업 리스트 탭
+  SHEETS.worklist.tabs.forEach((t, i) => {
+    allTabs.push({ sheetKey: 'worklist', tab: t, index: i });
+  });
+
+  // 시나리오 탭들
+  SCENARIO_TABS.forEach((t, i) => {
+    allTabs.push({ sheetKey: 'scenario', tab: t, index: i });
+  });
+
+  const nav = document.getElementById('tabNav');
+  nav.innerHTML = '';
+  allTabs.forEach((item, idx) => {
+    const btn = document.createElement('button');
+    btn.textContent = item.tab.name;
+    btn.dataset.idx = idx;
+    btn.addEventListener('click', () => switchTab(idx));
+    nav.appendChild(btn);
+  });
+
+  setActiveTab(0);
+}
+
+function switchTab(idx) {
+  currentTabIndex = idx;
+  setActiveTab(idx);
+  loadCurrentTab();
+}
+
+function setActiveTab(idx) {
+  document.querySelectorAll('.tab-nav button').forEach((b, i) => {
+    b.classList.toggle('active', i === idx);
+  });
+}
+
+// ────────────────────────────────────────────
+// 데이터 로드
+// ────────────────────────────────────────────
+function loadCurrentTab() {
+  const { sheetKey, tab } = allTabs[currentTabIndex];
+  const sheet = SHEETS[sheetKey];
+  const cbName = 'gvizCallback_' + Date.now();
+  const url = `https://docs.google.com/spreadsheets/d/${sheet.id}/gviz/tq?gid=${tab.gid}&callback=${cbName}`;
+
+  showLoading();
+
+  // 이전 스크립트 태그 제거
+  const old = document.getElementById('gviz_script');
+  if (old) old.remove();
+
+  // 타임아웃
+  const timer = setTimeout(() => {
+    showError('데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해 주세요.');
+    delete window[cbName];
+  }, 8000);
+
+  // JSONP 콜백
+  window[cbName] = (json) => {
+    clearTimeout(timer);
+    delete window[cbName];
+    renderTable(json, sheet.type, tab.name);
+    document.getElementById('lastUpdated').textContent = '최종 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  };
+
+  const script = document.createElement('script');
+  script.id = 'gviz_script';
+  script.src = url;
+  script.onerror = () => {
+    clearTimeout(timer);
+    delete window[cbName];
+    showError('데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해 주세요.');
+  };
+  document.head.appendChild(script);
+}
+
+// ────────────────────────────────────────────
+// 테이블 렌더링
+// ────────────────────────────────────────────
+function renderTable(json, type, tabName) {
+  const cols = json.table.cols;
+  const rows = json.table.rows;
+
+  if (!rows || rows.length === 0) {
+    showEmpty();
+    return;
+  }
+
+  const headers = cols.map(c => c.label || '');
+
+  if (type === 'worklist') {
+    renderWorklist(headers, rows);
+  } else {
+    renderScenario(headers, rows, tabName);
+  }
+}
+
+// ── 작업 리스트 렌더링 ──
+function renderWorklist(headers, rows) {
+  const displayHeaders = [...headers, '고객사 확인사항'];
+
+  let html = `
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="검색..." oninput="filterTable()" />
+      <select id="filterProgress" onchange="filterTable()">
+        <option value="">진행도 전체</option>
+        <option>보류</option><option>진행중</option><option>완료</option><option>불가</option>
+      </select>
+      <select id="filterPriority" onchange="filterTable()">
+        <option value="">우선순위 전체</option>
+        <option>상</option><option>중</option><option>하</option>
+      </select>
+      <span class="count-badge" id="rowCount"></span>
+    </div>
+    <div class="table-wrap">
+    <table id="dataTable">
+      <thead><tr>`;
+
+  // 헤더 - 상태(체크박스) 제외하고 표시
+  const skipCols = [0]; // 상태(boolean) 컬럼 숨김
+  displayHeaders.forEach((h, i) => {
+    if (skipCols.includes(i)) return;
+    html += `<th>${h || `열${i+1}`}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  rows.forEach((row, rowIdx) => {
+    if (!row.c) return;
+    const cells = row.c;
+    html += `<tr>`;
+    headers.forEach((h, i) => {
+      if (skipCols.includes(i)) return;
+      const val = cells[i] ? (cells[i].v !== null ? cells[i].v : '') : '';
+      const fmt = cells[i] ? (cells[i].f || val) : '';
+
+      if (h === '진행도') {
+        html += `<td><span class="badge badge-${val}">${val}</span></td>`;
+      } else if (h === '우선순위') {
+        html += `<td><span class="badge badge-${val}">${val}</span></td>`;
+      } else if (h === '시작일' || h === '종료일') {
+        html += `<td>${fmt || ''}</td>`;
+      } else {
+        html += `<td>${escHtml(String(fmt || val))}</td>`;
+      }
+    });
+
+    // 고객사 확인사항 컬럼
+    const savedVal = loadLocal('worklist', rowIdx);
+    html += `
+      <td class="customer-cell">
+        <textarea class="customer-input" id="ci_${rowIdx}" placeholder="고객사 의견을 입력하세요">${escHtml(savedVal)}</textarea>
+        <button class="save-btn" onclick="saveCustomer('worklist', ${rowIdx})">저장</button>
+        <div class="save-msg" id="cm_${rowIdx}">저장됨</div>
+      </td>`;
+
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+  updateRowCount();
+}
+
+// ── 시나리오 렌더링 ──
+function renderScenario(headers, rows, tabName) {
+  // 유효한 행만 필터
+  const validRows = rows.filter(r => r.c && r.c.some(c => c && c.v));
+
+  if (validRows.length === 0) { showEmpty(); return; }
+
+  // 헤더 구성: No / Step명 / Step설명 / CheckPoint / 오류 / 수정사항 / 고객사확인사항
+  const colMap = detectScenarioCols(headers);
+
+  let html = `
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="검색..." oninput="filterTable()" />
+      <span class="count-badge" id="rowCount"></span>
+    </div>
+    <div class="table-wrap">
+    <table id="dataTable">
+      <thead><tr>
+        <th>No</th>
+        <th>Step 명</th>
+        <th>Step 설명</th>
+        <th>Check Point</th>
+        <th>오류</th>
+        <th>수정 사항</th>
+        <th style="background:#fffbeb;min-width:200px;">고객사 확인사항 ✏️</th>
+      </tr></thead><tbody>`;
+
+  validRows.forEach((row, rowIdx) => {
+    const cells = row.c || [];
+    const get = (idx) => {
+      if (idx < 0 || !cells[idx]) return '';
+      return cells[idx].f || cells[idx].v || '';
+    };
+
+    const no       = get(colMap.no);
+    const stepName = get(colMap.stepName);
+    const stepDesc = get(colMap.stepDesc);
+    const checkPt  = get(colMap.checkpoint);
+    const error    = get(colMap.error);
+    const fix      = get(colMap.fix);
+
+    // 섹션 헤더 행 감지 (No가 없고 Step명이 길거나 특수한 경우)
+    const isSection = !no && !stepDesc && stepName && stepName.length < 30;
+
+    if (isSection) {
+      html += `<tr class="section-header"><td colspan="7">${escHtml(String(stepName))}</td></tr>`;
+      return;
+    }
+
+    const savedVal = loadLocal('scenario_' + tabName, rowIdx);
+    html += `<tr>
+      <td class="no-cell">${escHtml(String(no))}</td>
+      <td style="min-width:120px;font-weight:500;">${escHtml(String(stepName))}</td>
+      <td class="step-desc">${escHtml(String(stepDesc))}</td>
+      <td class="checkpoint">${escHtml(String(checkPt))}</td>
+      <td style="min-width:80px;">${escHtml(String(error))}</td>
+      <td style="min-width:100px;">${escHtml(String(fix))}</td>
+      <td class="customer-cell">
+        <textarea class="customer-input" id="ci_${rowIdx}" placeholder="고객사 의견을 입력하세요">${escHtml(savedVal)}</textarea>
+        <button class="save-btn" onclick="saveCustomer('scenario_${tabName}', ${rowIdx})">저장</button>
+        <div class="save-msg" id="cm_${rowIdx}">저장됨</div>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+  updateRowCount();
+}
+
+// 시나리오 컬럼 위치 자동 감지
+function detectScenarioCols(headers) {
+  const find = (keywords) => {
+    for (const kw of keywords) {
+      const idx = headers.findIndex(h => h && h.toLowerCase().includes(kw.toLowerCase()));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  return {
+    no:         find(['no', 'No', '번호']),
+    stepName:   find(['step 명', 'step명', '스텝명', 'step name']),
+    stepDesc:   find(['step 설명', 'step설명', '설명']),
+    checkpoint: find(['check', 'checkpoint', '체크']),
+    error:      find(['오류', 'error']),
+    fix:        find(['수정', 'fix'])
+  };
+}
+
+// ────────────────────────────────────────────
+// 필터
+// ────────────────────────────────────────────
+function filterTable() {
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const prog   = document.getElementById('filterProgress')?.value || '';
+  const prio   = document.getElementById('filterPriority')?.value || '';
+
+  const rows = document.querySelectorAll('#dataTable tbody tr');
+  let visible = 0;
+  rows.forEach(tr => {
+    if (tr.classList.contains('section-header')) { tr.style.display = ''; return; }
+    const text = tr.textContent.toLowerCase();
+    const matchSearch = !search || text.includes(search);
+    const matchProg   = !prog || text.includes(prog);
+    const matchPrio   = !prio || text.includes(prio);
+    const show = matchSearch && matchProg && matchPrio;
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('rowCount').textContent = `${visible}건`;
+}
+
+function updateRowCount() {
+  const rows = document.querySelectorAll('#dataTable tbody tr:not(.section-header)');
+  const el = document.getElementById('rowCount');
+  if (el) el.textContent = `${rows.length}건`;
+}
+
+// ────────────────────────────────────────────
+// 고객사 확인사항 저장
+// ────────────────────────────────────────────
+function saveCustomer(sheetKey, rowIdx) {
+  const input = document.getElementById(`ci_${rowIdx}`);
+  const msg   = document.getElementById(`cm_${rowIdx}`);
+  const btn   = input.nextElementSibling;
+  const val   = input.value;
+
+  // 로컬 저장
+  saveLocal(sheetKey, rowIdx, val);
+
+  // Apps Script 저장 (URL이 설정된 경우)
+  if (APPS_SCRIPT_URL) {
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetKey, rowIdx, value: val })
+    });
+  }
+
+  // UI 피드백
+  input.classList.add('saved');
+  btn.textContent = '저장됨 ✓';
+  btn.disabled = true;
+  msg.style.display = 'block';
+  showToast('저장되었습니다');
+
+  setTimeout(() => {
+    input.classList.remove('saved');
+    btn.textContent = '저장';
+    btn.disabled = false;
+    msg.style.display = 'none';
+  }, 2500);
+}
+
+// ── 로컬 스토리지 헬퍼 ──
+function saveLocal(key, rowIdx, val) {
+  const stored = JSON.parse(localStorage.getItem('tiltpro_comments') || '{}');
+  if (!stored[key]) stored[key] = {};
+  stored[key][rowIdx] = val;
+  localStorage.setItem('tiltpro_comments', JSON.stringify(stored));
+}
+
+function loadLocal(key, rowIdx) {
+  const stored = JSON.parse(localStorage.getItem('tiltpro_comments') || '{}');
+  return (stored[key] && stored[key][rowIdx]) ? stored[key][rowIdx] : '';
+}
+
+// ────────────────────────────────────────────
+// UI 유틸
+// ────────────────────────────────────────────
+function showLoading() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="state-box">
+      <div class="spinner"></div>
+      <p>데이터를 불러오는 중입니다...</p>
+    </div>`;
+}
+
+function showEmpty() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="state-box">
+      <div class="icon">📭</div>
+      <p>데이터가 없습니다.</p>
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="state-box">
+      <div class="icon">⚠️</div>
+      <p>${msg}</p>
+    </div>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
