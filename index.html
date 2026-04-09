@@ -467,9 +467,9 @@ function renderWorklist(headers, rows) {
       const fmt = cells[i] ? (cells[i].f || val) : '';
 
       if (h === '진행도') {
-        html += `<td><span class="badge badge-${val}">${val}</span></td>`;
+        html += `<td data-progress="${val}"><span class="badge badge-${val}">${val}</span></td>`;
       } else if (h === '우선순위') {
-        html += `<td><span class="badge badge-${val}">${val}</span></td>`;
+        html += `<td data-priority="${val}"><span class="badge badge-${val}">${val}</span></td>`;
       } else if (h === '시작일' || h === '종료일') {
         html += `<td>${fmt || ''}</td>`;
       } else {
@@ -597,8 +597,8 @@ function filterTable() {
     if (tr.classList.contains('section-header')) { tr.style.display = ''; return; }
     const text = tr.textContent.toLowerCase();
     const matchSearch = !search || text.includes(search);
-    const matchProg   = !prog || text.includes(prog);
-    const matchPrio   = !prio || text.includes(prio);
+    const matchProg   = !prog || (tr.querySelector('[data-progress]')?.dataset.progress === prog);
+    const matchPrio   = !prio || (tr.querySelector('[data-priority]')?.dataset.priority === prio);
     const show = matchSearch && matchProg && matchPrio;
     tr.style.display = show ? '' : 'none';
     if (show) visible++;
