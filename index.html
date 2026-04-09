@@ -166,6 +166,7 @@
     .badge-보류  { background: #fef3c7; color: #92400e; }
     .badge-진행중 { background: #dbeafe; color: #1e40af; }
     .badge-완료  { background: #dcfce7; color: #14532d; }
+    .badge-마감  { background: #dcfce7; color: #14532d; }
     .badge-불가  { background: #fee2e2; color: #991b1b; }
     .badge-확인중 { background: #ede9fe; color: #4c1d95; }
     .badge-상 { background: #fee2e2; color: #991b1b; }
@@ -437,7 +438,7 @@ function renderWorklist(headers, rows) {
       <input type="text" id="searchInput" placeholder="검색..." oninput="filterTable()" />
       <select id="filterProgress" onchange="filterTable()">
         <option value="">진행도 전체</option>
-        <option>보류</option><option>진행중</option><option>완료</option><option>불가</option>
+        <option>보류</option><option>진행중</option><option>마감</option><option>불가</option>
       </select>
       <select id="filterPriority" onchange="filterTable()">
         <option value="">우선순위 전체</option>
