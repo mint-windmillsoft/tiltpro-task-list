@@ -222,16 +222,25 @@
     .checkpoint { max-width: 300px; line-height: 1.6; white-space: pre-line; }
     .no-cell { width: 40px; text-align: center; color: var(--text-muted); font-weight: 600; }
 
-    /* ── 섹션 헤더 (시나리오 시트의 탭 그룹) ── */
-    .section-header {
-      background: #1e40af;
-    }
+    /* ── 섹션 헤더 ── */
     .section-header td {
+      background: #1e40af;
       font-weight: 700;
       color: #ffffff;
       padding: 12px 16px;
       font-size: 13px;
       letter-spacing: 0.3px;
+    }
+
+    /* ── 테이블 컬럼 헤더 (섹션 내부) ── */
+    .table-col-header th {
+      background: #f1f5f9;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-top: 2px solid var(--border);
+      border-bottom: 2px solid var(--border);
     }
 
     /* ── 반응형 ── */
@@ -365,7 +374,7 @@ function setActiveTab(idx) {
 function loadCurrentTab() {
   const { sheetKey, tab } = allTabs[currentTabIndex];
   const sheet = SHEETS[sheetKey];
-  const url = `https://docs.google.com/spreadsheets/d/${sheet.id}/gviz/tq?gid=${tab.gid}`;
+  const url = `https://docs.google.com/spreadsheets/d/${sheet.id}/gviz/tq?gid=${tab.gid}&headers=0`;
 
   showLoading();
 
@@ -414,7 +423,7 @@ function renderTable(json, type, tabName) {
   if (type === 'worklist') {
     renderWorklist(headers, rows);
   } else {
-    renderScenario(headers, rows, tabName);
+    renderScenario(json.table.rows, tabName);
   }
 }
 
@@ -484,14 +493,35 @@ function renderWorklist(headers, rows) {
   updateRowCount();
 }
 
-// ── 시나리오 렌더링 ──
-function renderScenario(headers, rows, tabName) {
-  // 유효한 행만 필터
-  const validRows = rows.filter(r => r.c && r.c.some(c => c && c.v));
+// ── 시나리오 렌더링 (headers=0 방식 — 모든 행 직접 파싱) ──
+function renderScenario(rows, tabName) {
+  if (!rows || rows.length === 0) { showEmpty(); return; }
 
-  if (validRows.length === 0) { showEmpty(); return; }
+  const getCell = (row, idx) => {
+    if (!row.c || !row.c[idx]) return '';
+    return String(row.c[idx].f || row.c[idx].v || '').trim();
+  };
 
-  const colMap = detectScenarioCols(headers);
+  // 행 전체에서 비어있지 않은 값 모으기
+  const rowVals = (row) => (row.c || []).map(c => c ? String(c.v || '').trim() : '');
+
+  // "No | Step 명 | Step 설명 | Check Point | 오류 | 수정 사항" 패턴의 헤더행 감지
+  const isTableHeader = (vals) =>
+    vals.some(v => v === 'No') && vals.some(v => v === 'Step 명' || v === 'Step명');
+
+  // 컬럼 인덱스 찾기 (헤더행 기준)
+  const findCol = (vals, keywords) => {
+    for (const kw of keywords) {
+      const idx = vals.findIndex(v => v && v.toLowerCase().includes(kw.toLowerCase()));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  let colNo = -1, colStep = -1, colDesc = -1, colCheck = -1, colErr = -1, colFix = -1;
+  let currentSection = '';
+  let inTable = false;
+  let pendingSection = '';
 
   let html = `
     <div class="filter-bar">
@@ -499,73 +529,88 @@ function renderScenario(headers, rows, tabName) {
       <span class="count-badge" id="rowCount"></span>
     </div>
     <div class="table-wrap">
-    <table id="dataTable">
-      <thead><tr>
-        <th>No</th>
-        <th>Step 명</th>
-        <th>Step 설명</th>
-        <th>Check Point</th>
-        <th>오류</th>
-        <th>수정 사항</th>
-      </tr></thead><tbody>`;
+    <table id="dataTable"><tbody>`;
 
-  validRows.forEach((row, rowIdx) => {
-    const cells = row.c || [];
-    const get = (idx) => {
-      if (idx < 0 || !cells[idx]) return '';
-      return cells[idx].f || cells[idx].v || '';
-    };
+  rows.forEach((row) => {
+    const vals = rowVals(row);
+    const nonEmpty = vals.filter(v => v);
+    if (nonEmpty.length === 0) return; // 완전히 빈 행 스킵
 
-    const no       = get(colMap.no);
-    const stepName = get(colMap.stepName);
-    const stepDesc = get(colMap.stepDesc);
-    const checkPt  = get(colMap.checkpoint);
-    const error    = get(colMap.error);
-    const fix      = get(colMap.fix);
+    // 테이블 헤더행 감지
+    if (isTableHeader(vals)) {
+      colNo    = findCol(vals, ['no', '번호']);
+      colStep  = findCol(vals, ['step 명', 'step명']);
+      colDesc  = findCol(vals, ['step 설명', 'step설명', '설명']);
+      colCheck = findCol(vals, ['check point', 'checkpoint', '체크']);
+      colErr   = findCol(vals, ['오류']);
+      colFix   = findCol(vals, ['수정']);
 
-    // 반복 헤더행 스킵 (Step 명, Step 설명 등이 그대로 들어있는 행)
-    if (stepName === 'Step 명' || stepDesc === 'Step 설명') return;
-
-    // 섹션 헤더 행 감지 (No 없고 stepDesc 없고 stepName에 내용 있는 경우)
-    const isSection = !no && !stepDesc && stepName;
-
-    if (isSection) {
-      html += `<tr class="section-header"><td colspan="6">${escHtml(String(stepName))}</td></tr>`;
+      // 테이블 헤더 직전에 쌓인 섹션 타이틀 표시
+      if (pendingSection) {
+        html += `
+          <tr class="section-header">
+            <td colspan="6">${escHtml(pendingSection)}</td>
+          </tr>
+          <tr class="table-col-header">
+            <th>No</th><th>Step 명</th><th>Step 설명</th>
+            <th>Check Point</th><th>오류</th><th>수정 사항</th>
+          </tr>`;
+        pendingSection = '';
+      } else if (inTable) {
+        // 섹션 타이틀 없이 헤더만 반복되는 경우 (공백 행 사이 구분)
+        html += `<tr class="table-col-header">
+            <th>No</th><th>Step 명</th><th>Step 설명</th>
+            <th>Check Point</th><th>오류</th><th>수정 사항</th>
+          </tr>`;
+      } else {
+        html += `<tr class="table-col-header">
+            <th>No</th><th>Step 명</th><th>Step 설명</th>
+            <th>Check Point</th><th>오류</th><th>수정 사항</th>
+          </tr>`;
+      }
+      inTable = true;
       return;
     }
 
+    // 테이블 진입 전 — 섹션 타이틀 후보 행
+    if (!inTable) {
+      if (nonEmpty.length <= 2) {
+        pendingSection = nonEmpty.join(' ');
+      }
+      return;
+    }
+
+    // 테이블 내부 — 섹션 타이틀 행 감지
+    // No 컬럼이 비어있고 다른 컬럼도 대부분 비어있으면 섹션 타이틀
+    const no = colNo >= 0 ? getCell(row, colNo) : '';
+    const step = colStep >= 0 ? getCell(row, colStep) : '';
+    const desc = colDesc >= 0 ? getCell(row, colDesc) : '';
+
+    if (!no && !desc && nonEmpty.length <= 2) {
+      // 새 섹션 타이틀 — 다음 테이블 헤더 전까지 pending
+      pendingSection = nonEmpty.join(' ');
+      inTable = false;
+      return;
+    }
+
+    // 일반 데이터 행
+    const checkPt = colCheck >= 0 ? getCell(row, colCheck) : '';
+    const error   = colErr   >= 0 ? getCell(row, colErr)   : '';
+    const fix     = colFix   >= 0 ? getCell(row, colFix)   : '';
+
     html += `<tr>
-      <td class="no-cell">${escHtml(String(no))}</td>
-      <td style="min-width:120px;font-weight:500;">${escHtml(String(stepName))}</td>
-      <td class="step-desc">${escHtml(String(stepDesc))}</td>
-      <td class="checkpoint">${escHtml(String(checkPt))}</td>
-      <td style="min-width:80px;">${escHtml(String(error))}</td>
-      <td style="min-width:100px;">${escHtml(String(fix))}</td>
+      <td class="no-cell">${escHtml(no)}</td>
+      <td style="min-width:120px;font-weight:500;">${escHtml(step)}</td>
+      <td class="step-desc">${escHtml(desc)}</td>
+      <td class="checkpoint">${escHtml(checkPt)}</td>
+      <td style="min-width:80px;">${escHtml(error)}</td>
+      <td style="min-width:100px;">${escHtml(fix)}</td>
     </tr>`;
   });
 
   html += `</tbody></table></div>`;
   document.getElementById('mainContent').innerHTML = html;
   updateRowCount();
-}
-
-// 시나리오 컬럼 위치 자동 감지
-function detectScenarioCols(headers) {
-  const find = (keywords) => {
-    for (const kw of keywords) {
-      const idx = headers.findIndex(h => h && h.toLowerCase().includes(kw.toLowerCase()));
-      if (idx >= 0) return idx;
-    }
-    return -1;
-  };
-  return {
-    no:         find(['no', 'No', '번호']),
-    stepName:   find(['step 명', 'step명', '스텝명', 'step name']),
-    stepDesc:   find(['step 설명', 'step설명', '설명']),
-    checkpoint: find(['check', 'checkpoint', '체크']),
-    error:      find(['오류', 'error']),
-    fix:        find(['수정', 'fix'])
-  };
 }
 
 // ────────────────────────────────────────────
