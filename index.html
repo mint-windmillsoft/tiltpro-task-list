@@ -286,16 +286,10 @@
 // 설정
 // ────────────────────────────────────────────
 const SHEETS = {
-  worklist: {
-    id: '1m5yKlMm9JrT9CfIrMZN0rF5-Uhegl3ZDsBb9G2nFh4M',
-    label: '수정/요청 작업 리스트',
-    tabs: [{ name: '작업 리스트', gid: '0' }],
-    type: 'worklist'
-  },
   scenario: {
     id: '1cDKVgrRFiM-sdbnHK3nFbYV0QFYxNv2V4vx-7Fv1fFc',
     label: '통합 테스트 시나리오',
-    tabs: [], // 탭 목록은 동적으로 추가
+    tabs: [],
     type: 'scenario'
   }
 };
@@ -320,7 +314,7 @@ const APPS_SCRIPT_URL = '';
 // ────────────────────────────────────────────
 // 상태
 // ────────────────────────────────────────────
-let currentSheetKey = 'worklist';
+let currentSheetKey = 'scenario';
 let currentTabIndex = 0;
 let allTabs = [];
 
@@ -335,12 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function buildTabs() {
   allTabs = [];
 
-  // 작업 리스트 탭
-  SHEETS.worklist.tabs.forEach((t, i) => {
-    allTabs.push({ sheetKey: 'worklist', tab: t, index: i });
-  });
-
-  // 시나리오 탭들
   SCENARIO_TABS.forEach((t, i) => {
     allTabs.push({ sheetKey: 'scenario', tab: t, index: i });
   });
@@ -502,7 +490,6 @@ function renderScenario(headers, rows, tabName) {
 
   if (validRows.length === 0) { showEmpty(); return; }
 
-  // 헤더 구성: No / Step명 / Step설명 / CheckPoint / 오류 / 수정사항 / 고객사확인사항
   const colMap = detectScenarioCols(headers);
 
   let html = `
@@ -519,7 +506,6 @@ function renderScenario(headers, rows, tabName) {
         <th>Check Point</th>
         <th>오류</th>
         <th>수정 사항</th>
-        <th style="background:#fffbeb;min-width:200px;">고객사 확인사항 ✏️</th>
       </tr></thead><tbody>`;
 
   validRows.forEach((row, rowIdx) => {
@@ -540,11 +526,10 @@ function renderScenario(headers, rows, tabName) {
     const isSection = !no && !stepDesc && stepName && stepName.length < 30;
 
     if (isSection) {
-      html += `<tr class="section-header"><td colspan="7">${escHtml(String(stepName))}</td></tr>`;
+      html += `<tr class="section-header"><td colspan="6">${escHtml(String(stepName))}</td></tr>`;
       return;
     }
 
-    const savedVal = loadLocal('scenario_' + tabName, rowIdx);
     html += `<tr>
       <td class="no-cell">${escHtml(String(no))}</td>
       <td style="min-width:120px;font-weight:500;">${escHtml(String(stepName))}</td>
@@ -552,11 +537,6 @@ function renderScenario(headers, rows, tabName) {
       <td class="checkpoint">${escHtml(String(checkPt))}</td>
       <td style="min-width:80px;">${escHtml(String(error))}</td>
       <td style="min-width:100px;">${escHtml(String(fix))}</td>
-      <td class="customer-cell">
-        <textarea class="customer-input" id="ci_${rowIdx}" placeholder="고객사 의견을 입력하세요">${escHtml(savedVal)}</textarea>
-        <button class="save-btn" onclick="saveCustomer('scenario_${tabName}', ${rowIdx})">저장</button>
-        <div class="save-msg" id="cm_${rowIdx}">저장됨</div>
-      </td>
     </tr>`;
   });
 
