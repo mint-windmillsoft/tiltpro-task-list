@@ -588,7 +588,7 @@ function renderScenario(rows, tabName) {
     const desc = colDesc  >= 0 ? getCell(row, colDesc)  : '';
 
     // No 컬럼이 숫자가 아닌 텍스트이거나, No 비어있고 데이터 컬럼도 비어있으면 섹션 타이틀
-    const noIsSection = no && isNaN(parseInt(no));
+    const noIsSection = no && !/^\d+$/.test(no.trim());
     const isSection = (noIsSection && !step && !desc) ||
                       (!no && !step && !desc && nonEmpty.length <= 2);
 
