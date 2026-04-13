@@ -583,14 +583,17 @@ function renderScenario(rows, tabName) {
     }
 
     // 테이블 내부 — 섹션 타이틀 행 감지
-    // No 컬럼이 비어있고 다른 컬럼도 대부분 비어있으면 섹션 타이틀
-    const no = colNo >= 0 ? getCell(row, colNo) : '';
-    const step = colStep >= 0 ? getCell(row, colStep) : '';
-    const desc = colDesc >= 0 ? getCell(row, colDesc) : '';
+    const no   = colNo    >= 0 ? getCell(row, colNo)    : '';
+    const step = colStep  >= 0 ? getCell(row, colStep)  : '';
+    const desc = colDesc  >= 0 ? getCell(row, colDesc)  : '';
 
-    if (!no && !desc && nonEmpty.length <= 2) {
-      // 새 섹션 타이틀 — 다음 테이블 헤더 전까지 pending
-      pendingSection = nonEmpty.join(' ');
+    // No 컬럼이 숫자가 아닌 텍스트이거나, No 비어있고 데이터 컬럼도 비어있으면 섹션 타이틀
+    const noIsSection = no && isNaN(parseInt(no));
+    const isSection = (noIsSection && !step && !desc) ||
+                      (!no && !step && !desc && nonEmpty.length <= 2);
+
+    if (isSection) {
+      pendingSection = no || nonEmpty.join(' ');
       inTable = false;
       return;
     }
