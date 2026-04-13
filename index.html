@@ -551,13 +551,8 @@ function renderScenario(rows, tabName) {
       // "No" 레이블 없으면 Step 명 바로 왼쪽 컬럼
       if (colNo < 0 && colStep > 0) colNo = colStep - 1;
 
-      if (pendingSection) {
-        sectionCount++;
-        html += `<tr class="section-header"><td colspan="6">${escHtml(pendingSection)}</td></tr>`;
-        pendingSection = '';
-      } else if (!inTable) {
-        // 섹션 타이틀이 gviz에 없는 경우 — 첫 테이블이면 그냥 헤더만
-      }
+      // 첫 번째 테이블 = 내부 사용자 섹션
+      html += `<tr class="section-header"><td colspan="6">1. 내부 사용자(영업 담당자) 시나리오</td></tr>`;
       html += colHeader();
       inTable = true;
       prevNo = null;
@@ -586,10 +581,10 @@ function renderScenario(rows, tabName) {
       return;
     }
 
-    // No가 1로 리셋되면 새 섹션 (섹션 타이틀이 gviz에 없는 경우 대비)
+    // No가 1로 리셋되면 두 번째 섹션 (포털 사용자)
     const noNum = parseInt(no);
     if (noNum === 1 && prevNo !== null && prevNo > 1) {
-      html += `<tr class="section-header"><td colspan="6">─</td></tr>` + colHeader();
+      html += `<tr class="section-header"><td colspan="6">2. 포털 사용자(대리점 직원) 시나리오</td></tr>` + colHeader();
     }
     prevNo = isNaN(noNum) ? prevNo : noNum;
 
