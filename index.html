@@ -495,23 +495,15 @@ function renderWorklist(headers, rows) {
   updateRowCount();
 }
 
-// ── 시나리오 렌더링 (headers=0 방식 — 모든 행 직접 파싱) ──
+// ── 시나리오 렌더링 ──
 function renderScenario(rows, tabName) {
   if (!rows || rows.length === 0) { showEmpty(); return; }
 
   const getCell = (row, idx) => {
-    if (!row.c || !row.c[idx]) return '';
+    if (idx < 0 || !row.c || !row.c[idx]) return '';
     return String(row.c[idx].f || row.c[idx].v || '').trim();
   };
-
-  // 행 전체에서 비어있지 않은 값 모으기
   const rowVals = (row) => (row.c || []).map(c => c ? String(c.v || '').trim() : '');
-
-  // "No | Step 명 | Step 설명 | Check Point | 오류 | 수정 사항" 패턴의 헤더행 감지
-  const isTableHeader = (vals) =>
-    vals.some(v => v === 'No') && vals.some(v => v === 'Step 명' || v === 'Step명');
-
-  // 컬럼 인덱스 찾기 (헤더행 기준)
   const findCol = (vals, keywords) => {
     for (const kw of keywords) {
       const idx = vals.findIndex(v => v && v.toLowerCase().includes(kw.toLowerCase()));
@@ -520,10 +512,14 @@ function renderScenario(rows, tabName) {
     return -1;
   };
 
+  // "Step 명"이 있으면 테이블 헤더 행 (No 없어도 됨)
+  const isTableHeader = (vals) => vals.some(v => v === 'Step 명' || v === 'Step명');
+
   let colNo = -1, colStep = -1, colDesc = -1, colCheck = -1, colErr = -1, colFix = -1;
-  let currentSection = '';
   let inTable = false;
   let pendingSection = '';
+  let prevNo = null;
+  let sectionCount = 0;
 
   let html = `
     <div class="filter-bar">
@@ -533,75 +529,75 @@ function renderScenario(rows, tabName) {
     <div class="table-wrap">
     <table id="dataTable"><tbody>`;
 
+  const colHeader = () => `
+    <tr class="table-col-header">
+      <th>No</th><th>Step 명</th><th>Step 설명</th>
+      <th>Check Point</th><th>오류</th><th>수정 사항</th>
+    </tr>`;
+
   rows.forEach((row) => {
     const vals = rowVals(row);
-    const nonEmpty = vals.filter(v => v);
-    if (nonEmpty.length === 0) return; // 완전히 빈 행 스킵
+    const nonEmpty = vals.filter(v => v && v.trim() !== '　');
+    if (nonEmpty.length === 0) return;
 
     // 테이블 헤더행 감지
     if (isTableHeader(vals)) {
-      colNo    = findCol(vals, ['no', '번호']);
       colStep  = findCol(vals, ['step 명', 'step명']);
       colDesc  = findCol(vals, ['step 설명', 'step설명', '설명']);
       colCheck = findCol(vals, ['check point', 'checkpoint', '체크']);
       colErr   = findCol(vals, ['오류']);
       colFix   = findCol(vals, ['수정']);
+      colNo    = findCol(vals, ['no', '번호']);
+      // "No" 레이블 없으면 Step 명 바로 왼쪽 컬럼
+      if (colNo < 0 && colStep > 0) colNo = colStep - 1;
 
-      // 테이블 헤더 직전에 쌓인 섹션 타이틀 표시
       if (pendingSection) {
-        html += `
-          <tr class="section-header">
-            <td colspan="6">${escHtml(pendingSection)}</td>
-          </tr>
-          <tr class="table-col-header">
-            <th>No</th><th>Step 명</th><th>Step 설명</th>
-            <th>Check Point</th><th>오류</th><th>수정 사항</th>
-          </tr>`;
+        sectionCount++;
+        html += `<tr class="section-header"><td colspan="6">${escHtml(pendingSection)}</td></tr>`;
         pendingSection = '';
-      } else if (inTable) {
-        // 섹션 타이틀 없이 헤더만 반복되는 경우 (공백 행 사이 구분)
-        html += `<tr class="table-col-header">
-            <th>No</th><th>Step 명</th><th>Step 설명</th>
-            <th>Check Point</th><th>오류</th><th>수정 사항</th>
-          </tr>`;
-      } else {
-        html += `<tr class="table-col-header">
-            <th>No</th><th>Step 명</th><th>Step 설명</th>
-            <th>Check Point</th><th>오류</th><th>수정 사항</th>
-          </tr>`;
+      } else if (!inTable) {
+        // 섹션 타이틀이 gviz에 없는 경우 — 첫 테이블이면 그냥 헤더만
       }
+      html += colHeader();
       inTable = true;
+      prevNo = null;
       return;
     }
 
-    // 테이블 진입 전 — 섹션 타이틀 후보 행
+    // 테이블 진입 전
     if (!inTable) {
-      if (nonEmpty.length <= 2) {
+      // 섹션 타이틀 후보 (짧고 의미있는 텍스트)
+      if (nonEmpty.length <= 2 && nonEmpty.some(v => v.length > 3)) {
         pendingSection = nonEmpty.join(' ');
       }
       return;
     }
 
-    // 테이블 내부 — 섹션 타이틀 행 감지
-    const no   = colNo    >= 0 ? getCell(row, colNo)    : '';
-    const step = colStep  >= 0 ? getCell(row, colStep)  : '';
-    const desc = colDesc  >= 0 ? getCell(row, colDesc)  : '';
+    const no   = getCell(row, colNo);
+    const step = getCell(row, colStep);
+    const desc = getCell(row, colDesc);
 
-    // No 컬럼이 숫자가 아닌 텍스트이거나, No 비어있고 데이터 컬럼도 비어있으면 섹션 타이틀
+    // 섹션 타이틀 행 감지 (테이블 내)
     const noIsSection = no && !/^\d+$/.test(no.trim());
-    const isSection = (noIsSection && !step && !desc) ||
-                      (!no && !step && !desc && nonEmpty.length <= 2);
-
-    if (isSection) {
+    const isEmpty = !no && !step && !desc && nonEmpty.length <= 2;
+    if (noIsSection || isEmpty) {
       pendingSection = no || nonEmpty.join(' ');
       inTable = false;
       return;
     }
 
-    // 일반 데이터 행
-    const checkPt = colCheck >= 0 ? getCell(row, colCheck) : '';
-    const error   = colErr   >= 0 ? getCell(row, colErr)   : '';
-    const fix     = colFix   >= 0 ? getCell(row, colFix)   : '';
+    // No가 1로 리셋되면 새 섹션 (섹션 타이틀이 gviz에 없는 경우 대비)
+    const noNum = parseInt(no);
+    if (noNum === 1 && prevNo !== null && prevNo > 1) {
+      html += `<tr class="section-header"><td colspan="6">─</td></tr>` + colHeader();
+    }
+    prevNo = isNaN(noNum) ? prevNo : noNum;
+
+    const checkPt = getCell(row, colCheck);
+    const error   = getCell(row, colErr);
+    const fix     = getCell(row, colFix);
+
+    if (!no && !step && !desc && !checkPt && !error && !fix) return;
 
     html += `<tr>
       <td class="no-cell">${escHtml(no)}</td>
