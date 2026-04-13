@@ -277,7 +277,6 @@
 <header>
   <div>
     <h1>틸트프로 통합테스트 협업 포털</h1>
-    <div class="subtitle">고객사 확인사항은 각 행의 입력란에 직접 작성해 주세요</div>
   </div>
   <div class="header-right" id="lastUpdated">불러오는 중...</div>
 </header>
@@ -536,7 +535,7 @@ function renderScenario(rows, tabName) {
   const colHeader = () => `
     <tr class="table-col-header">
       <th>No</th><th>Step 명</th><th>Step 설명</th>
-      <th>Check Point</th><th>오류</th><th>수정 사항</th>
+      <th>Check Point</th>
     </tr>`;
 
   rows.forEach((row) => {
@@ -557,7 +556,7 @@ function renderScenario(rows, tabName) {
       // 섹션 인덱스 증가 후 섹션 헤더 표시
       sectionIdx++;
       const title = SECTION_TITLES[sectionIdx] || `섹션 ${sectionIdx + 1}`;
-      html += `<tr class="section-header"><td colspan="6">${escHtml(title)}</td></tr>`;
+      html += `<tr class="section-header"><td colspan="4">${escHtml(title)}</td></tr>`;
       html += colHeader();
       inTable = true;
       prevNo = null;
@@ -584,7 +583,7 @@ function renderScenario(rows, tabName) {
     if (noNum === 1 && prevNo !== null && prevNo > 1 && sectionIdx < SECTION_TITLES.length - 1) {
       sectionIdx++;
       const title = SECTION_TITLES[sectionIdx];
-      html += `<tr class="section-header"><td colspan="6">${escHtml(title)}</td></tr>` + colHeader();
+      html += `<tr class="section-header"><td colspan="4">${escHtml(title)}</td></tr>` + colHeader();
     }
     prevNo = isNaN(noNum) ? prevNo : noNum;
 
@@ -599,8 +598,6 @@ function renderScenario(rows, tabName) {
       <td style="min-width:120px;font-weight:500;">${escHtml(step)}</td>
       <td class="step-desc">${escHtml(desc)}</td>
       <td class="checkpoint">${escHtml(checkPt)}</td>
-      <td style="min-width:80px;">${escHtml(error)}</td>
-      <td style="min-width:100px;">${escHtml(fix)}</td>
     </tr>`;
   });
 
