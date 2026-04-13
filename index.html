@@ -515,11 +515,15 @@ function renderScenario(rows, tabName) {
   // "Step 명"이 있으면 테이블 헤더 행 (No 없어도 됨)
   const isTableHeader = (vals) => vals.some(v => v === 'Step 명' || v === 'Step명');
 
+  const SECTION_TITLES = [
+    '1. 내부 사용자(영업 담당자) 시나리오',
+    '2. 포털 사용자(대리점 직원) 시나리오'
+  ];
+
   let colNo = -1, colStep = -1, colDesc = -1, colCheck = -1, colErr = -1, colFix = -1;
   let inTable = false;
-  let pendingSection = '';
   let prevNo = null;
-  let sectionCount = 0;
+  let sectionIdx = -1; // 현재 섹션 인덱스 (-1 = 아직 시작 전)
 
   let html = `
     <div class="filter-bar">
@@ -548,43 +552,39 @@ function renderScenario(rows, tabName) {
       colErr   = findCol(vals, ['오류']);
       colFix   = findCol(vals, ['수정']);
       colNo    = findCol(vals, ['no', '번호']);
-      // "No" 레이블 없으면 Step 명 바로 왼쪽 컬럼
       if (colNo < 0 && colStep > 0) colNo = colStep - 1;
 
-      // 첫 번째 테이블 = 내부 사용자 섹션
-      html += `<tr class="section-header"><td colspan="6">1. 내부 사용자(영업 담당자) 시나리오</td></tr>`;
+      // 섹션 인덱스 증가 후 섹션 헤더 표시
+      sectionIdx++;
+      const title = SECTION_TITLES[sectionIdx] || `섹션 ${sectionIdx + 1}`;
+      html += `<tr class="section-header"><td colspan="6">${escHtml(title)}</td></tr>`;
       html += colHeader();
       inTable = true;
       prevNo = null;
       return;
     }
 
-    // 테이블 진입 전
-    if (!inTable) {
-      // 섹션 타이틀 후보 (짧고 의미있는 텍스트)
-      if (nonEmpty.length <= 2 && nonEmpty.some(v => v.length > 3)) {
-        pendingSection = nonEmpty.join(' ');
-      }
-      return;
-    }
+    // 테이블 진입 전 행 스킵
+    if (!inTable) return;
 
     const no   = getCell(row, colNo);
     const step = getCell(row, colStep);
     const desc = getCell(row, colDesc);
 
-    // 섹션 타이틀 행 감지 (테이블 내)
+    // 섹션 타이틀 행 감지 (테이블 내 — 다음 isTableHeader를 기다림)
     const noIsSection = no && !/^\d+$/.test(no.trim());
     const isEmpty = !no && !step && !desc && nonEmpty.length <= 2;
     if (noIsSection || isEmpty) {
-      pendingSection = no || nonEmpty.join(' ');
       inTable = false;
       return;
     }
 
-    // No가 1로 리셋되면 두 번째 섹션 (포털 사용자)
+    // No가 1로 리셋 → 섹션 타이틀이 gviz에 없는 경우 대비 (계정 등)
     const noNum = parseInt(no);
-    if (noNum === 1 && prevNo !== null && prevNo > 1) {
-      html += `<tr class="section-header"><td colspan="6">2. 포털 사용자(대리점 직원) 시나리오</td></tr>` + colHeader();
+    if (noNum === 1 && prevNo !== null && prevNo > 1 && sectionIdx < SECTION_TITLES.length - 1) {
+      sectionIdx++;
+      const title = SECTION_TITLES[sectionIdx];
+      html += `<tr class="section-header"><td colspan="6">${escHtml(title)}</td></tr>` + colHeader();
     }
     prevNo = isNaN(noNum) ? prevNo : noNum;
 
